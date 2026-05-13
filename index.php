@@ -624,7 +624,7 @@
             txt;
         }
 
-        downloadTxt(bookName + "_scattered.txt", txt);
+        downloadTxt(bookName + "_staggered.txt", txt);
 
         setStatus("TXT exported.");
       } catch (err) {
