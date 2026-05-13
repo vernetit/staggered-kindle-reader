@@ -1,9 +1,11 @@
 ````md
 # Staggered Text Layout for Kindle
 
-A simple PHP/HTML/JavaScript tool that converts `.html` and `.txt` books into a staggered plain text layout designed for easier diagonal reading on Kindle and other e-readers.
+A simple PHP/HTML/JavaScript tool that converts `.html` and `.txt` books into a staggered plain text layout
+designed for easier diagonal reading on Kindle and other e-readers.
 
-The app loads book files from the `./libros/` folder, lets you choose a book, configure the staggered column structure, and export the result as a `.txt` file.
+The app loads book files from the `./libros/` folder, lets you choose a book,
+configure the staggered column structure, and export the result as a `.txt` file.
 
 ## Features
 
