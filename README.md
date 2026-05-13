@@ -30,3 +30,5 @@ Hello there
                               here
                                    walking
                                    slowly
+
+https://vernetit.github.io/staggered-kindle-reader/
