@@ -21,7 +21,7 @@
     }
 
     .panel {
-      width: min(520px, calc(100vw - 24px));
+      width: min(680px, calc(100vw - 24px));
       display: grid;
       gap: 14px;
       padding: 20px;
@@ -39,7 +39,8 @@
     }
 
     select,
-    button {
+    button,
+    input {
       width: 100%;
       font: inherit;
       padding: 12px 14px;
@@ -47,6 +48,11 @@
       border: 1px solid #444;
       background: #222;
       color: #eee;
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      transform: scale(1.25);
     }
 
     button {
@@ -64,6 +70,81 @@
       font-size: 13px;
       color: #aaa;
     }
+
+    .configBox {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #333;
+      border-radius: 14px;
+      background: #161616;
+    }
+
+    .configTitle {
+      font-weight: 800;
+      color: #7dd3fc;
+      margin-bottom: 4px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checkLabel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .columnsBox {
+      display: grid;
+      gap: 10px;
+    }
+
+    .columnConfig {
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr;
+      gap: 10px;
+      align-items: end;
+      padding: 10px;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      background: #1f1f1f;
+    }
+
+    .columnTitle {
+      font-weight: 800;
+      color: #facc15;
+      padding-bottom: 13px;
+    }
+
+    .miniHelp {
+      font-size: 12px;
+      color: #888;
+      line-height: 1.4;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 560px) {
+      .grid2 {
+        grid-template-columns: 1fr;
+      }
+
+      .columnConfig {
+        grid-template-columns: 1fr;
+      }
+
+      .columnTitle {
+        padding-bottom: 0;
+      }
+    }
   </style>
 </head>
 
@@ -74,21 +155,57 @@
       <select id="bookSelect"></select>
     </label>
 
-    <button id="exportBtn">Expor TXT</button>
+    <div class="configBox">
+      <div class="configTitle">Config export</div>
 
-    <br> 
+      <div class="grid2">
+        <label>
+          cantidad de columnas
+          <select id="cantidadColumnas">
+            <option value="3" selected>3 columnas</option>
+            <option value="4">4 columnas</option>
+            <option value="5">5 columnas</option>
+            <option value="6">6 columnas</option>
+            <option value="7">7 columnas</option>
+            <option value="8">8 columnas</option>
+            <option value="9">9 columnas</option>
+            <option value="10">10 columnas</option>
+          </select>
+        </label>
+
+        <label>
+          gapColumnas
+          <input id="gapColumnas" type="number" min="0" step="1" value="7">
+        </label>
+      </div>
+
+      <div class="miniHelp">
+        Cada columna tiene cantidad de líneas y palabras por línea.  
+        Ejemplo clásico: columna 1 = 1 línea de 2 palabras, columna 2 = 1 línea de 4 palabras, columna 3 = 3 líneas de 1 palabra.
+      </div>
+
+      <div id="columnsBox" class="columnsBox"></div>
+
+      <label class="checkLabel">
+        <input id="lineaVaciaEntreBloques" type="checkbox" checked>
+        línea vacía entre bloques
+      </label>
+    </div>
+
+    <button id="exportBtn">Export TXT</button>
+
+    <br>
     You can chose the the better font to more efficient display in your Kindle Device
 
-    <br>  <br> 
+    <br><br>
 
     <img src="example.jpg" width="400px" height="500px">
-  
 
     <div id="status" class="status"></div>
   </div>
 
   <script>
-    const DEFAULT_BOOK_NAMES = [
+      const DEFAULT_BOOK_NAMES = [
       "hp3e.html",
       "Haruki Murakami - Kafka en la Orilla.html",
       "hp3resumen.html",
@@ -115,41 +232,146 @@
       "La conjura de los necios.html",
       "William Gibson - Neuromante.html"
     ];
-
     const CONFIG = {
       carpetaLibros: "./libros/",
 
-      // Formato tipo:
-      // Hola como?
-      //                  te va todo bien
-      //                                  si
-      //                                  aca
-      //                                  ando
+      cantidadColumnas: 3,
 
-      parte1Palabras: 2,
-      parte2Palabras: 4,
-      parte3Lineas: 3,
-      parte3PalabrasPorLinea: 1,
+      columnas: [
+        { lineas: 1, palabrasPorLinea: 2 },
+        { lineas: 1, palabrasPorLinea: 4 },
+        { lineas: 3, palabrasPorLinea: 1 }
+      ],
 
-      // Espacio extra entre escalones.
-      // Si querés más separado, subí esto a 8, 10, 12.
-      gapColumnas: 6,
-
-      // Cada cuántos bloques dejar línea vacía.
+      gapColumnas: 7,
       lineaVaciaEntreBloques: true,
 
-      // Encabezado dentro del TXT.
       incluirEncabezado: false
     };
 
     const els = {
       bookSelect: document.querySelector("#bookSelect"),
       exportBtn: document.querySelector("#exportBtn"),
-      status: document.querySelector("#status")
+      status: document.querySelector("#status"),
+
+      cantidadColumnas: document.querySelector("#cantidadColumnas"),
+      columnsBox: document.querySelector("#columnsBox"),
+      gapColumnas: document.querySelector("#gapColumnas"),
+      lineaVaciaEntreBloques: document.querySelector("#lineaVaciaEntreBloques")
     };
 
     function setStatus(txt) {
       els.status.textContent = txt || "";
+    }
+
+    function getIntFromInput(input, fallback, min = 0) {
+      const n = parseInt(input.value, 10);
+
+      if (Number.isNaN(n)) return fallback;
+
+      return Math.max(min, n);
+    }
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function defaultColumnConfig(index) {
+      const defaults = [
+        { lineas: 1, palabrasPorLinea: 2 },
+        { lineas: 1, palabrasPorLinea: 4 },
+        { lineas: 3, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 },
+        { lineas: 2, palabrasPorLinea: 1 }
+      ];
+
+      return defaults[index] || { lineas: 1, palabrasPorLinea: 1 };
+    }
+
+    function syncColumnsLength(amount) {
+      amount = clamp(amount, 3, 10);
+
+      while (CONFIG.columnas.length < amount) {
+        CONFIG.columnas.push(defaultColumnConfig(CONFIG.columnas.length));
+      }
+
+      while (CONFIG.columnas.length > amount) {
+        CONFIG.columnas.pop();
+      }
+
+      CONFIG.cantidadColumnas = amount;
+    }
+
+    function renderColumnControls() {
+      const amount = getIntFromInput(els.cantidadColumnas, 3, 3);
+      syncColumnsLength(amount);
+
+      els.columnsBox.innerHTML = "";
+
+      CONFIG.columnas.forEach((col, index) => {
+        const row = document.createElement("div");
+        row.className = "columnConfig";
+
+        row.innerHTML = `
+          <div class="columnTitle">Col ${index + 1}</div>
+
+          <label>
+            líneas
+            <input
+              class="colLineas"
+              data-index="${index}"
+              type="number"
+              min="0"
+              step="1"
+              value="${col.lineas}"
+            >
+          </label>
+
+          <label>
+            palabras por línea
+            <input
+              class="colPalabras"
+              data-index="${index}"
+              type="number"
+              min="1"
+              step="1"
+              value="${col.palabrasPorLinea}"
+            >
+          </label>
+        `;
+
+        els.columnsBox.appendChild(row);
+      });
+    }
+
+    function updateConfigFromInputs() {
+      const amount = getIntFromInput(els.cantidadColumnas, 3, 3);
+      syncColumnsLength(amount);
+
+      CONFIG.gapColumnas = getIntFromInput(els.gapColumnas, 7, 0);
+      CONFIG.lineaVaciaEntreBloques = els.lineaVaciaEntreBloques.checked;
+
+      const lineasInputs = document.querySelectorAll(".colLineas");
+      const palabrasInputs = document.querySelectorAll(".colPalabras");
+
+      lineasInputs.forEach(input => {
+        const index = parseInt(input.dataset.index, 10);
+        if (!CONFIG.columnas[index]) return;
+
+        CONFIG.columnas[index].lineas = getIntFromInput(input, 1, 0);
+      });
+
+      palabrasInputs.forEach(input => {
+        const index = parseInt(input.dataset.index, 10);
+        if (!CONFIG.columnas[index]) return;
+
+        CONFIG.columnas[index].palabrasPorLinea = getIntFromInput(input, 1, 1);
+      });
     }
 
     function toBookPath(name) {
@@ -214,6 +436,10 @@
       const raw = doc.body ? doc.body.innerText : doc.documentElement.innerText;
 
       return normalizeText(raw);
+    }
+
+    function txtToText(txt) {
+      return normalizeText(txt);
     }
 
     function splitIntoUnits(text) {
@@ -287,36 +513,58 @@
           continue;
         }
 
-        const parte1 = takeWords(units, state, CONFIG.parte1Palabras);
-        const parte2 = takeWords(units, state, CONFIG.parte2Palabras);
+        const columnasTexto = [];
 
-        const parte3 = [];
+        for (let c = 0; c < CONFIG.columnas.length; c++) {
+          const colConfig = CONFIG.columnas[c];
+          const lineasDeColumna = [];
 
-        for (let n = 0; n < CONFIG.parte3Lineas; n++) {
-          const linea = takeWords(units, state, CONFIG.parte3PalabrasPorLinea);
-          if (linea.length) parte3.push(linea);
-          if (state.i < units.length && units[state.i].type === "break") break;
+          for (let l = 0; l < colConfig.lineas; l++) {
+            const palabras = takeWords(units, state, colConfig.palabrasPorLinea);
+
+            if (palabras.length) {
+              lineasDeColumna.push(palabras.join(" "));
+            }
+
+            if (state.i < units.length && units[state.i].type === "break") {
+              break;
+            }
+          }
+
+          columnasTexto.push(lineasDeColumna);
+
+          if (state.i < units.length && units[state.i].type === "break") {
+            break;
+          }
         }
 
-        const linea1 = parte1.join(" ");
-        const linea2 = parte2.join(" ");
+        const columnasConTexto = columnasTexto.filter(col => col.length > 0);
 
-        const col1 = 0;
-        const col2 = col1 + visibleLen(linea1) + CONFIG.gapColumnas;
-        const col3 = col2 + visibleLen(linea2) + CONFIG.gapColumnas;
-
-        if (linea1) {
-          lines.push(spaces(col1) + linea1);
+        if (!columnasConTexto.length) {
+          continue;
         }
 
-        if (linea2) {
-          lines.push(spaces(col2) + linea2);
+        const posiciones = [];
+        let cursorColumna = 0;
+
+        for (let c = 0; c < columnasConTexto.length; c++) {
+          posiciones[c] = cursorColumna;
+
+          const anchoColumna = columnasConTexto[c].reduce((max, linea) => {
+            return Math.max(max, visibleLen(linea));
+          }, 0);
+
+          cursorColumna += anchoColumna + CONFIG.gapColumnas;
         }
 
-        for (const palabras of parte3) {
-          const linea3 = palabras.join(" ");
-          if (linea3) {
-            lines.push(spaces(col3) + linea3);
+        for (let c = 0; c < columnasConTexto.length; c++) {
+          const col = columnasConTexto[c];
+          const indent = posiciones[c];
+
+          for (const linea of col) {
+            if (linea) {
+              lines.push(spaces(indent) + linea);
+            }
           }
         }
 
@@ -339,8 +587,13 @@
         throw new Error("No pude cargar el archivo: HTTP " + res.status);
       }
 
-      const html = await res.text();
-      return htmlToText(html);
+      const raw = await res.text();
+
+      if (/\.txt($|\?)/i.test(path)) {
+        return txtToText(raw);
+      }
+
+      return htmlToText(raw);
     }
 
     function downloadTxt(filename, text) {
@@ -357,7 +610,15 @@
       URL.revokeObjectURL(url);
     }
 
+    function configToText() {
+      return CONFIG.columnas.map((col, index) => {
+        return "C" + (index + 1) + ":" + col.lineas + "x" + col.palabrasPorLinea;
+      }).join(" / ");
+    }
+
     async function exportSelectedBook() {
+      updateConfigFromInputs();
+
       const path = els.bookSelect.value;
       const bookName = cleanFileName(path);
 
@@ -379,25 +640,21 @@
         if (CONFIG.incluirEncabezado) {
           txt =
             "Libro: " + bookName + "\n" +
-            "Formato: " +
-            CONFIG.parte1Palabras + " / " +
-            CONFIG.parte2Palabras + " / " +
-            CONFIG.parte3Lineas + "x" +
-            CONFIG.parte3PalabrasPorLinea + "\n\n" +
+            "Formato: " + configToText() + "\n\n" +
             txt;
         }
 
-        downloadTxt(bookName + "_staggered.txt", txt);
+        downloadTxt(bookName + "_scattered.txt", txt);
 
-        setStatus("TXT expored.");
+        setStatus("TXT exported.");
       } catch (err) {
         console.error(err);
         setStatus("Error: " + (err.message || err));
         alert(
           "No pude exportar.\n\n" +
           (err.message || err) +
-          "\n\nSi abriste el HTML con doble click, probá con servidor local:\n\n" +
-          "python3 -m http.server 8000\n\n" +
+          "\n\nSi abriste el PHP/HTML con doble click, probá con servidor local:\n\n" +
+          "php -S localhost:8000\n\n" +
           "y abrí http://localhost:8000/"
         );
       } finally {
@@ -405,9 +662,15 @@
       }
     }
 
+    els.cantidadColumnas.addEventListener("change", () => {
+      updateConfigFromInputs();
+      renderColumnControls();
+    });
+
     els.exportBtn.addEventListener("click", exportSelectedBook);
 
     renderBookSelect();
+    renderColumnControls();
     setStatus("Select a book and export.");
   </script>
 </body>
