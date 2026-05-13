@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staggered text layout txt to read in Kindle</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #111;
+      color: #eee;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    .panel {
+      width: min(520px, calc(100vw - 24px));
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+      border: 1px solid #333;
+      border-radius: 18px;
+      background: #1b1b1b;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      color: #bbb;
+    }
+
+    select,
+    button {
+      width: 100%;
+      font: inherit;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #444;
+      background: #222;
+      color: #eee;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 800;
+      color: #7dd3fc;
+    }
+
+    button:hover {
+      filter: brightness(1.15);
+    }
+
+    .status {
+      min-height: 1.4em;
+      font-size: 13px;
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="panel">
+    <label>
+      Select book example hp3e.html (harry potter 3 in English)
+      <select id="bookSelect"></select>
+    </label>
+
+    <button id="exportBtn">Expor TXT</button>
+
+    <br> 
+    You can chose the the better font to more efficient display in your Kindle Device
+
+    <br>  <br> 
+
+    <img src="example.jpg" width="400px" height="500px">
+  
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    const DEFAULT_BOOK_NAMES = [
+      "hp3e.html",
+      "Haruki Murakami - Kafka en la Orilla.html",
+      "hp3resumen.html",
+      "La Torre Oscura I.html",
+      "aleph2.html",
+      "benedetti.html",
+      "el capital en el siglo xxi - piketty thomas.html",
+      "divergente.html",
+      "Homero.LaIliada1.html",
+      "The 4-Hour Body.html",
+      "Elsenordelosanillos.html",
+      "hp3.html",
+      "HarukiMurakami.DeQueHAbloCuandoHabloDeCorrer.html",
+      "rand ayn - el manantial.html",
+      "Rayuela_libro.html",
+      "aleph.html",
+      "hp3resumenEn.html",
+      "hp3e2.html",
+      "01 - Harry Potter y la Piedra Filosofal.html",
+      "rae.html",
+      "poemas borges.html",
+      "hp3e3.html",
+      "boys dont cry.html",
+      "La conjura de los necios.html",
+      "William Gibson - Neuromante.html"
+    ];
+
+    const CONFIG = {
+      carpetaLibros: "./libros/",
+
+      // Formato tipo:
+      // Hola como?
+      //                  te va todo bien
+      //                                  si
+      //                                  aca
+      //                                  ando
+
+      parte1Palabras: 2,
+      parte2Palabras: 4,
+      parte3Lineas: 3,
+      parte3PalabrasPorLinea: 1,
+
+      // Espacio extra entre escalones.
+      // Si querés más separado, subí esto a 8, 10, 12.
+      gapColumnas: 0,
+
+      // Cada cuántos bloques dejar línea vacía.
+      lineaVaciaEntreBloques: true,
+
+      // Encabezado dentro del TXT.
+      incluirEncabezado: false
+    };
+
+    const els = {
+      bookSelect: document.querySelector("#bookSelect"),
+      exportBtn: document.querySelector("#exportBtn"),
+      status: document.querySelector("#status")
+    };
+
+    function setStatus(txt) {
+      els.status.textContent = txt || "";
+    }
+
+    function toBookPath(name) {
+      const raw = String(name || "").trim();
+
+      if (!raw) return CONFIG.carpetaLibros + "hp3.html";
+
+      if (/^(https?:|file:|\/|\.\/|\.\.\/)/i.test(raw)) {
+        return raw;
+      }
+
+      if (/^libros\//i.test(raw)) {
+        return "./" + raw;
+      }
+
+      return CONFIG.carpetaLibros + raw;
+    }
+
+    function cleanFileName(name) {
+      return String(name || "libro")
+        .replace(/^\.\/libros\//i, "")
+        .replace(/^libros\//i, "")
+        .replace(/\.[^.]+$/, "")
+        .replace(/[\\/:*?"<>|]/g, "_")
+        .trim() || "libro";
+    }
+
+    function renderBookSelect() {
+      els.bookSelect.innerHTML = "";
+
+      for (const name of DEFAULT_BOOK_NAMES) {
+        const opt = document.createElement("option");
+        opt.value = toBookPath(name);
+        opt.textContent = name;
+        els.bookSelect.appendChild(opt);
+      }
+    }
+
+    function normalizeText(text) {
+      return String(text || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n[ \t]+/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{4,}/g, "\n\n\n")
+        .trim();
+    }
+
+    function htmlToText(html) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+
+      doc.querySelectorAll("script, style, noscript, svg, canvas").forEach(n => n.remove());
+
+      doc.querySelectorAll("br").forEach(br => {
+        br.replaceWith("\n");
+      });
+
+      doc.querySelectorAll("p, div, h1, h2, h3, h4, h5, h6, li, section, article").forEach(n => {
+        n.insertAdjacentText("beforeend", "\n");
+      });
+
+      const raw = doc.body ? doc.body.innerText : doc.documentElement.innerText;
+
+      return normalizeText(raw);
+    }
+
+    function splitIntoUnits(text) {
+      const chunks = String(text || "").split(/(\n\s*\n|\n)/g);
+      const units = [];
+
+      for (const chunk of chunks) {
+        if (!chunk) continue;
+
+        if (/^\n\s*\n$/.test(chunk)) {
+          units.push({ type: "break" });
+          continue;
+        }
+
+        if (/^\n$/.test(chunk)) {
+          units.push({ type: "softBreak" });
+          continue;
+        }
+
+        const words = chunk.trim().split(/\s+/).filter(Boolean);
+
+        for (const word of words) {
+          units.push({ type: "word", value: word });
+        }
+      }
+
+      return units;
+    }
+
+    function takeWords(units, state, amount) {
+      const words = [];
+
+      while (state.i < units.length && words.length < amount) {
+        const unit = units[state.i];
+
+        if (unit.type === "break") break;
+
+        if (unit.type === "word") {
+          words.push(unit.value);
+        }
+
+        state.i++;
+      }
+
+      return words;
+    }
+
+    function visibleLen(str) {
+      return String(str || "").length;
+    }
+
+    function spaces(n) {
+      return " ".repeat(Math.max(0, Math.floor(n)));
+    }
+
+    function buildEscalonadoTxt(units) {
+      const lines = [];
+      const state = { i: 0 };
+
+      while (state.i < units.length) {
+        const unit = units[state.i];
+
+        if (unit.type === "break") {
+          lines.push("");
+          state.i++;
+          continue;
+        }
+
+        if (unit.type !== "word") {
+          state.i++;
+          continue;
+        }
+
+        const parte1 = takeWords(units, state, CONFIG.parte1Palabras);
+        const parte2 = takeWords(units, state, CONFIG.parte2Palabras);
+
+        const parte3 = [];
+
+        for (let n = 0; n < CONFIG.parte3Lineas; n++) {
+          const linea = takeWords(units, state, CONFIG.parte3PalabrasPorLinea);
+          if (linea.length) parte3.push(linea);
+          if (state.i < units.length && units[state.i].type === "break") break;
+        }
+
+        const linea1 = parte1.join(" ");
+        const linea2 = parte2.join(" ");
+
+        const col1 = 0;
+        const col2 = col1 + visibleLen(linea1) + CONFIG.gapColumnas;
+        const col3 = col2 + visibleLen(linea2) + CONFIG.gapColumnas;
+
+        if (linea1) {
+          lines.push(spaces(col1) + linea1);
+        }
+
+        if (linea2) {
+          lines.push(spaces(col2) + linea2);
+        }
+
+        for (const palabras of parte3) {
+          const linea3 = palabras.join(" ");
+          if (linea3) {
+            lines.push(spaces(col3) + linea3);
+          }
+        }
+
+        if (CONFIG.lineaVaciaEntreBloques) {
+          lines.push("");
+        }
+      }
+
+      return lines
+        .join("\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{5,}/g, "\n\n\n\n")
+        .trimEnd();
+    }
+
+    async function fetchBookText(path) {
+      const res = await fetch(path, { cache: "no-store" });
+
+      if (!res.ok) {
+        throw new Error("No pude cargar el archivo: HTTP " + res.status);
+      }
+
+      const html = await res.text();
+      return htmlToText(html);
+    }
+
+    function downloadTxt(filename, text) {
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportSelectedBook() {
+      const path = els.bookSelect.value;
+      const bookName = cleanFileName(path);
+
+      try {
+        els.exportBtn.disabled = true;
+        setStatus("Loading...");
+
+        const plainText = await fetchBookText(path);
+        const units = splitIntoUnits(plainText);
+
+        if (!units.some(u => u.type === "word")) {
+          throw new Error("No encontré texto legible.");
+        }
+
+        setStatus("Calculando espacios...");
+
+        let txt = buildEscalonadoTxt(units);
+
+        if (CONFIG.incluirEncabezado) {
+          txt =
+            "Libro: " + bookName + "\n" +
+            "Formato: " +
+            CONFIG.parte1Palabras + " / " +
+            CONFIG.parte2Palabras + " / " +
+            CONFIG.parte3Lineas + "x" +
+            CONFIG.parte3PalabrasPorLinea + "\n\n" +
+            txt;
+        }
+
+        downloadTxt(bookName + "_scattered.txt", txt);
+
+        setStatus("TXT expored.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Error: " + (err.message || err));
+        alert(
+          "No pude exportar.\n\n" +
+          (err.message || err) +
+          "\n\nSi abriste el HTML con doble click, probá con servidor local:\n\n" +
+          "python3 -m http.server 8000\n\n" +
+          "y abrí http://localhost:8000/"
+        );
+      } finally {
+        els.exportBtn.disabled = false;
+      }
+    }
+
+    els.exportBtn.addEventListener("click", exportSelectedBook);
+
+    renderBookSelect();
+    setStatus("Select a book and export.");
+  </script>
+</body>
+</html>
